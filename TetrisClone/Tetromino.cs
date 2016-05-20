@@ -7,32 +7,39 @@ namespace TetrisClone
     class Tetromino
     {
         private static readonly bool[,] S_BLOCK = {
-            { false, true, true },
-            { true,  true, false} };
+            { false, true,  true },
+            { true,  true,  false},
+            { false, false, false } };
 
         private static readonly bool[,] Z_BLOCK = {
-            {true,  true,  false },
-            {false, true,  true  } };
+            { true,  true,  false },
+            { false, true,  true  },
+            { false, false, false } };
 
         private static readonly bool[,] T_BLOCK = {
-            {false, true,  false },
-            {true,  true,  true  } };
+            { false, true,  false },
+            { true,  true,  true  },
+            { false, false, false } };
 
         private static readonly bool[,] O_BLOCK = {
-            {true,  true },
-            {true,  true } };
+            { true,  true },
+            { true,  true } };
 
         private static readonly bool[,] I_BLOCK = {
-            {true,  true,  true,  true },
-            {false, false, false, false} };
+            { false, false, false, false },
+            { true,  true,  true,  true  },
+            { false, false, false, false },
+            { false, false, false, false } };
 
         private static readonly bool[,] J_BLOCK = {
-            {true, false,  false },
-            {true,  true,  true  } };
+            { true, false,  false },
+            { true,  true,  true  },
+            { false, false, false } };
 
         private static readonly bool[,] L_BLOCK = {
-            {false, false, true  },
-            {true,  true,  true  } };
+            { false, false, true  },
+            { true,  true,  true  },
+            { false, false, false } };
 
         private static readonly bool[][,] BLOCK_TYPES = {S_BLOCK, Z_BLOCK, T_BLOCK,
             O_BLOCK, I_BLOCK, J_BLOCK, L_BLOCK };
@@ -45,37 +52,57 @@ namespace TetrisClone
         public Rectangle[] shapeRects { get; set; }
         public Color color { get; }
         private Board board;
-        private int blockType, blockRow, blockColumn, totalColumns;
-        private bool[,] shape;
+        private int blockType, blockRow, blockColumn, totalColumns, totalRows, previewOffset;
+        private bool[,] shapeBool;
 
         public Tetromino(Board b)
         {
             board = b;
             totalColumns = board.columns;
+            totalRows = board.rows;
             Random rand = new Random();
             blockType = rand.Next(0, 7); // 0 to 6
-            shape = BLOCK_TYPES[blockType];
+            shapeBool = BLOCK_TYPES[blockType];
             color = BLOCK_COLORS[blockType];
             shapeRects = new Rectangle[4];
 
-            int rectNumber = 0; //rectangle array index
-            int startX = (BLOCK_WIDTH*4) + 5; //4 columns in and 5 column borders
             blockRow = 0;
-            blockColumn = 5 - (shape.GetLength(0)/2);
+            blockColumn = 0;
 
-            for(int i=0; i < shape.GetLength(0); ++i) //rows
+            // offset for preview window
+            if (shapeBool.GetLength(0) != 4) { previewOffset = 11; }
+
+            shapeRects = getRectangles(shapeBool);
+        }
+
+        public Tetromino makeFallingBlock()
+        {
+            blockColumn = (totalColumns / 2) - (shapeBool.GetLength(0) / 2); //center falling block
+            previewOffset = 0;
+            shapeRects = getRectangles(shapeBool);
+            return this;
+        }
+
+        private Rectangle[] getRectangles(bool[,] shapeArray)
+        {
+            Rectangle[] returnArray = new Rectangle[4];
+            int rectNumber = 0;
+            int iLength = shapeArray.GetLength(0);
+            int jLength = shapeArray.GetLength(1);
+            for (int i = 0; i < iLength; ++i) //rows
             {
-                for(int j=0; j<shape.GetLength(1); ++j) //columns
+                for (int j = 0; j < jLength; ++j) //columns
                 {
-                    if (shape[i, j])
+                    if (shapeArray[i, j])
                     {
-                        shapeRects[rectNumber] = new Rectangle((blockColumn * (BLOCK_WIDTH + 1)) + ((BLOCK_WIDTH + 1) * j) +1, //x
-                                                               (blockRow * (BLOCK_WIDTH + 1)) + ((BLOCK_WIDTH + 1) * i) +1, //y 
+                        returnArray[rectNumber] = new Rectangle((blockColumn * (BLOCK_WIDTH + 1)) + ((BLOCK_WIDTH + 1) * j) + 1 + previewOffset, //x
+                                                               (blockRow * (BLOCK_WIDTH + 1)) + ((BLOCK_WIDTH + 1) * i) + 1 + previewOffset, //y 
                                                                 BLOCK_WIDTH, BLOCK_WIDTH);
                         ++rectNumber;
                     }
                 }
             }
+            return returnArray;
         }
 
         public void paintBlock(PaintEventArgs e)
@@ -89,21 +116,24 @@ namespace TetrisClone
             }
         }
 
-        public bool moveDown()
+        private bool isValidMove(Rectangle[] rectangles)
         {
-            // Check for bottom of playing area
-            for (int i = 0; i < shapeRects.Length; ++i){
-                if(shapeRects[i].Y + 21 >= 443)
+            for (int i = 0; i < rectangles.Length; ++i)
+            {
+                //check right/left/bottom boundaries
+                if (rectangles[i].X > (((BLOCK_WIDTH+1) * totalColumns) - BLOCK_WIDTH) || 
+                        rectangles[i].X <  0 || 
+                        rectangles[i].Y > (((BLOCK_WIDTH+1) * totalRows) - BLOCK_WIDTH))
                 {
                     return false;
                 }
             }
 
-            // Check for other blocks
-            for (int i = 0; i < shapeRects.Length; ++i)
+            //check for other blocks
+            for (int i = 0; i < rectangles.Length; ++i)
             {
-                int x = (shapeRects[i].X / 21); 
-                int y = (shapeRects[i].Y / 21) + 1; // grid coordinates
+                int x = (rectangles[i].X / (BLOCK_WIDTH+1));
+                int y = (rectangles[i].Y / (BLOCK_WIDTH+1)); // grid coordinates
 
                 if (!board.isSpotEmpty(x, y))
                 {
@@ -111,129 +141,51 @@ namespace TetrisClone
                 }
             }
 
-            // Move block
-            for (int i=0; i<shapeRects.Length; ++i){
-                shapeRects[i].Y += 21;
-            }
-            blockRow += 1;
             return true;
         }
 
-        public void moveRight()
+        public bool moveBlock(int x, int y)
         {
-            // Check for right of playing area
-            for (int i = 0; i < shapeRects.Length; ++i)
-            {
-                if (shapeRects[i].X + 21 >= 191)
-                {
-                    return;
-                }
-            }
-
-            // Check for other blocks
-            for (int i = 0; i < shapeRects.Length; ++i)
-            {
-                int x = (shapeRects[i].X / 21) +1;
-                int y = (shapeRects[i].Y / 21); // grid coordinates
-
-                if (!board.isSpotEmpty(x, y))
-                {
-                    return;
-                }
-            }
-
             // Move block
-            for (int i = 0; i < shapeRects.Length; ++i)
-            {
-                
-                shapeRects[i].X += 21;
-            }
-            blockColumn += 1;
-        }
+            Rectangle[] tempRects = new Rectangle[shapeRects.Length];
+            Array.Copy(shapeRects, tempRects, shapeRects.Length);
 
-        public void moveLeft()
-        {
-            // Check for left of playing area
-            for (int i = 0; i < shapeRects.Length; ++i)
-            {
-                if (shapeRects[i].X - 21 <= 0)
-                {
-                    return;
-                }
+            for (int i = 0; i < tempRects.Length; ++i)
+            {   
+                tempRects[i].X += ((BLOCK_WIDTH+1) * x);
+                tempRects[i].Y += ((BLOCK_WIDTH+1) * y);
             }
-
-            // Check for other blocks
-            for (int i = 0; i < shapeRects.Length; ++i)
+            if (isValidMove(tempRects))
             {
-                int x = (shapeRects[i].X / 21) - 1;
-                int y = (shapeRects[i].Y / 21); // grid coordinates
-
-                if (!board.isSpotEmpty(x, y))
-                {
-                    return;
-                }
+                shapeRects = tempRects;
+                blockColumn += x;
+                blockRow += y;
+                return true;
             }
-
-            // Move block
-            for (int i = 0; i < shapeRects.Length; ++i)
-            {
-                
-                shapeRects[i].X -= 21;
-            }
-            blockColumn -= 1;
+            return false;
         }
 
         public void rotate()
         {
-            Rectangle[] tempRects = new Rectangle[4];
-            bool[,] tempShape = new bool[shape.GetLength(1),shape.GetLength(0)];
+            int shapeLength = shapeBool.GetLength(0);
+            bool[,] tempShape = new bool[shapeLength, shapeLength];
 
             //rotate shape matrix
-            int tempCol, tempRow = 0;
-            for(int i=shape.GetLength(1)-1; i>=0; --i)
+            for (int i=shapeLength-1; i>=0; --i)
             {
-                tempCol = 0;
-                for(int j=0; j< shape.GetLength(0); ++j)
+                for(int j=0; j<=shapeLength-1; ++j)
                 {
-                    tempShape[tempRow, tempCol] = shape[j, i];
-                    tempCol++;
-                }
-                tempRow++;
-            }
-
-            int rectNumber = 0;
-            for (int i = 0; i < tempShape.GetLength(0); ++i) //rows
-            {
-                for (int j = 0; j < tempShape.GetLength(1); ++j) //columns
-                {
-                    if (tempShape[i, j])
-                    {
-                        tempRects[rectNumber] = new Rectangle((blockColumn * (BLOCK_WIDTH + 1)) + ((BLOCK_WIDTH + 1) * j) + 1, //x
-                                                              (blockRow * (BLOCK_WIDTH + 1)) + ((BLOCK_WIDTH + 1) * i) + 1, //y 
-                                                                BLOCK_WIDTH, BLOCK_WIDTH);
-                        ++rectNumber;
-                    }
+                    tempShape[j,(shapeLength-1) -i] = shapeBool[i, j];
                 }
             }
 
-            for (int i = 0; i < tempRects.Length; ++i)
+            Rectangle[] tempRects = getRectangles(tempShape);
+
+            if (isValidMove(tempRects))
             {
-                //check boundaries
-                if (tempRects[i].X < 0 || tempRects[i].X >= 191 || tempRects[i].Y >= 443)
-                {
-                    return;
-                }
-                // check collisions
-                int x = tempRects[i].X / 21;
-                int y = tempRects[i].Y / 21;
-                if (!board.isSpotEmpty(x, y))
-                {
-                    return;
-                }
+                shapeBool = tempShape;
+                shapeRects = tempRects;
             }
-            // move is valid, copy new rotation
-            shape = tempShape;
-            shapeRects = tempRects;
         }
     }
 }

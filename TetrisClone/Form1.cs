@@ -32,12 +32,14 @@ namespace TetrisClone
             {
                 long currentTime = watch.ElapsedMilliseconds;
                 long elapsedTime = currentTime - lastTime;
-                if (elapsedTime > 1000) //1 second
+                double difficulty = 1000 - (1000*Math.Log(board.level,50)); //log scale: 1000(1sec) at lvl 1, 57 at lvl 40
+                if (elapsedTime > difficulty)
                 {
                     lastTime = currentTime;
                     board.moveDown();
                     if (board.gameOver()) newGame();
                     panel1.Invalidate();
+                    panel2.Invalidate();
                 }
                 Application.DoEvents();
             }
@@ -53,6 +55,9 @@ namespace TetrisClone
         {
             board.paintBoard(e);
             e.Graphics.FillRectangle(greyBrush, 0, 0, 211, 42);
+            lblScore.Text = "" + board.score;
+            lblLevel.Text = "Level:" + board.level;
+            lblRowsLeft.Text = "Rows left:" + (20 - (board.rowsCleared % 20));
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -70,12 +75,12 @@ namespace TetrisClone
                     break;
 
                 case (Keys)39:
-                    board.fallingBlock.moveRight();
+                    board.fallingBlock.moveBlock(1,0);
                     panel1.Invalidate();
                     break;
 
                 case (Keys)37:
-                    board.fallingBlock.moveLeft();
+                    board.fallingBlock.moveBlock(-1,0);
                     panel1.Invalidate();
                     break;
 
@@ -89,6 +94,11 @@ namespace TetrisClone
         private void newGameToolStripMenuItem_Click(object sender, EventArgs e)
         {
             newGame();
+        }
+
+        private void panel2_Paint(object sender, PaintEventArgs e)
+        {
+            board.paintNextBlock(e);
         }
     }
 }

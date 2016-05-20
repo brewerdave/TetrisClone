@@ -16,6 +16,8 @@ namespace TetrisClone
         public int rows { get; }
         public int score { get; set; }
         public int level { get; set; }
+        public int rowsCleared { get; set; }
+        public Tetromino nextBlock;
 
         public Board(int columns, int rows) 
         {
@@ -25,7 +27,9 @@ namespace TetrisClone
             level = 1;
             blockGrid = new Rectangle[columns, rows];
             colorGrid = new SolidBrush[columns, rows];
-            newFallingBlock();
+            fallingBlock = new Tetromino(this);
+            fallingBlock.makeFallingBlock();
+            nextBlock = new Tetromino(this);
         }
         
         public void paintBoard(PaintEventArgs e)
@@ -46,6 +50,12 @@ namespace TetrisClone
             }
         }
 
+        public void paintNextBlock(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            nextBlock.paintBlock(e);
+        }
+
         public bool isSpotEmpty(int x, int y)
         {
             if (blockGrid[x, y].IsEmpty)
@@ -55,7 +65,8 @@ namespace TetrisClone
 
         public void newFallingBlock()
         {
-            fallingBlock = new Tetromino(this);
+            fallingBlock = nextBlock.makeFallingBlock();            
+            nextBlock = new Tetromino(this);
         }
 
         /// <summary>
@@ -63,7 +74,7 @@ namespace TetrisClone
         /// </summary>
         public void moveDown()
         {
-            if (!fallingBlock.moveDown())
+            if (!fallingBlock.moveBlock(0, 1))
             {
                 addBlock();
                 newFallingBlock();
@@ -98,6 +109,7 @@ namespace TetrisClone
         /// </summary>
         public void clearRows()
         {
+            int rowsDone = 0;
             for (int r = rows -1; r >=0; --r)
             {
                 bool rowFull = true;
@@ -111,7 +123,7 @@ namespace TetrisClone
                 }
                 if (rowFull)
                 {
-                    score += 40 * level;
+                    rowsDone += 1;
                     for (int j = r; j > 0; --j)
                     {
                         for (int i = 0; i < columns; ++i)
@@ -127,6 +139,14 @@ namespace TetrisClone
                     r++; //recheck this row
                 }
             }
+            addScore(rowsDone);
+        }
+
+        private void addScore(int rows)
+        {
+            score += 40 * rows * level;
+            rowsCleared += rows;
+            level = (rowsCleared / 20) + 1;
         }
 
         public bool gameOver()
